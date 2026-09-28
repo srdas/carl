@@ -2,11 +2,25 @@
 
 This is the minimal CARL controller and support set, copied without prior runs or research-history material.
 
+To begin, install `uv` if not already installed
+```
+https://docs.astral.sh/uv/getting-started/installation/
+```
+
+Then create and activate the `uv` environment:
+```
+uv venv --python 3.13
+source .venv/bin/activate
+```
+
 ## Run
 
-1. Install the controller dependencies: `python -m pip install -r requirements.txt`.
-2. Configure AWS credentials through your usual AWS SSO/profile flow. If helpful, copy `.env.example` to `.env` and fill in the applicable values.
-3. Start the web interface with `python web.py`, or the terminal interface with `python carl.py`.
+1. Install the controller dependencies:
+`uv python -m pip install -r requirements.txt`.
+
+3. Configure AWS credentials through your usual AWS SSO/profile flow. If helpful, copy `.env.example` to `.env` and fill in the applicable values.
+
+4. Start the web interface with `python web.py`, or the terminal interface with `python carl.py`.
 
 New runs will create `sessions/` automatically. The optional `/suggest` command will create `refs/` automatically.
 
