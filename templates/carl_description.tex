@@ -1,0 +1,39 @@
+\section{CARL: Chat Assisted Rubric Learning}
+
+CARL (Chat Assisted Rubric Learning) is a conversational framework for
+translating domain expertise into fully specified reinforcement learning
+systems. Rather than requiring the user to possess deep RL knowledge
+upfront, CARL structures the design process as a guided dialogue across
+nine sequential steps: problem definition, reference ingestion, literature
+search, parameter exploration, state space design, action space definition,
+reward shaping, initial testing, and full training. At each step, CARL
+elicits the decisions required for that stage, suggests sensible defaults
+drawn from domain context and literature, and summarises the outcomes
+before advancing. The result is a complete, executable RL codebase whose
+design choices are fully traceable to the domain expert's stated objectives
+and constraints.
+
+The nine steps are:
+
+\begin{enumerate}
+    \item[\textbf{1.}] \textbf{Problem Definition} --- Elicit domain objectives, dynamics, and episode structure.
+    \item[\textbf{2.}] \textbf{References} --- Ingest user-provided documents and extract key domain knowledge.
+    \item[\textbf{2.5.}] \textbf{Literature Search} --- Query Semantic Scholar for relevant prior work.
+    \item[\textbf{3.}] \textbf{Parameter Exploration} --- Confirm domain parameter ranges for randomisation.
+    \item[\textbf{4.}] \textbf{Information Proposal} --- Design state variables, features, and normalisation.
+    \item[\textbf{5.}] \textbf{Action Definition} --- Define action space, bounds, and algorithm family.
+    \item[\textbf{6.}] \textbf{Reward Definition} --- Design reward function, shaping, and constraints.
+    \item[\textbf{7.}] \textbf{ML/RL Parameters} --- Select and confirm hyperparameters and network architecture.
+    \item[\textbf{8.}] \textbf{Initial Testing} --- Generate environment, run dry-runs and baseline checks.
+    \item[\textbf{9.}] \textbf{Launch} --- Execute full training pipeline and produce evaluation plots.
+\end{enumerate}
+
+The system is implemented as a multi-turn LLM agent powered by Claude via
+AWS Bedrock. Steps 1--7 are conversational: the user and CARL alternate
+turns to converge on a formulation, aided by Trillian, a secondary
+persona that proposes user responses to accelerate the dialogue. Steps 8
+and 9 are autonomous: CARL generates, executes, and iteratively debugs
+all code---environment, agent, training loop, and evaluation---without
+further input. This separation of concerns ensures that domain knowledge
+is captured precisely during the interactive phase, while the technical
+implementation is handled reliably during the autonomous phase.

@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CARL -- Chat Assisted Reinforcement Learning</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true,
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+    },
+    startup: {
+      typeset: false,
+      ready: () => {
+        MathJax.startup.defaultReady();
+        if (window.renderExistingMath) window.renderExistingMath();
+      },
+    },
+  };
+</script>
+<style>
+  :root {
+    --bg: #1a1b26;
+    --surface: #24263a;
+    --border: #3b3d57;
+    --text: #c0caf5;
+    --text-dim: #787c99;
+    --accent: #7aa2f7;
+    --green: #9ece6a;
+    --yellow: #e0af68;
+    --red: #f7768e;
+    --cyan: #7dcfff;
+    --term-bg: #141520;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ──────────────────────────────── */
+  header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-size: 16px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  header .step-badge {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--cyan);
+  }
+  header .session-info {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { opacity: 0.85; }
+
+  /* ── Main split layout ─────────────────────── */
+  #main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Left pane: Chat ───────────────────────── */
+  #chat-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .message-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 90%;
+  }
+  .message-row.user { align-self: flex-end; flex-direction: row-reverse; }
+  .message-row.assistant { align-self: flex-start; }
+  .message-row.system { align-self: center; }
+
+  .avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .message {
+    padding: 12px 16px;
+    border-radius: 10px;
+    line-height: 1.6;
+    word-wrap: break-word;
+    min-width: 0;
+  }
+  .message.user {
+    background: #283457;
+    border: 1px solid #3d5296;
+  }
+  .message.assistant {
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .message.system {
+    align-self: center;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 8px;
+  }
+  /* Markdown rendering inside messages */
+  .message h1, .message h2, .message h3 {
+    color: var(--accent);
+    margin: 12px 0 6px;
+    font-size: 14px;
+  }
+  .message h1 { font-size: 16px; }
+  .message h2 { font-size: 15px; }
+  .message p { margin: 6px 0; }
+  .message ul, .message ol { margin: 6px 0 6px 20px; }
+  .message li { margin: 2px 0; }
+  .message code {
+    background: rgba(0,0,0,0.3);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 13px;
+  }
+  .message pre {
+    background: #1a1b2e;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 8px 0;
+    overflow-x: auto;
+  }
+  .message pre code {
+    background: none;
+    padding: 0;
+    font-size: 12px;
+  }
+  .message table {
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 12px;
+  }
+  .message th, .message td {
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+  }
+  .message th { background: rgba(0,0,0,0.2); }
+  .message strong { color: var(--cyan); }
+  .message blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 12px;
+    margin: 6px 0;
+    color: var(--text-dim);
+  }
+  .message mjx-container {
+    color: var(--text);
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    padding: 2px 0;
+  }
+  .message mjx-container[display="true"] {
+    display: block;
+    margin: 10px 0;
+    padding: 6px 0;
+  }
+
+  /* Step banner */
+  .step-banner {
+    align-self: center;
+    padding: 10px 24px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #283457, #1e2030);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  /* Summary card */
+  .summary-card {
+    align-self: center;
+    max-width: 90%;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: #1a2e1a;
+    border: 1px solid var(--green);
+  }
+  .summary-card .label {
+    font-size: 11px;
+    color: var(--green);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  /* ── Input bar ───────────────────────────── */
+  #input-bar {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  #input-bar textarea {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    resize: none;
+    overflow-y: hidden;
+    min-height: 40px;
+    max-height: 150px;
+    line-height: 1.4;
+  }
+  #input-bar textarea:focus { border-color: var(--accent); }
+  #input-bar textarea::placeholder { color: var(--text-dim); }
+  #input-bar textarea:disabled { opacity: 0.5; }
+
+  /* ── Right pane: Terminal ───────────────────── */
+  #term-pane {
+    width: 420px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--term-bg);
+  }
+  #term-header {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #term-header .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    display: inline-block;
+  }
+  #term-header .dot.active {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+  #term {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  #term .log-text { color: var(--text-dim); }
+  #term .log-tool { color: var(--yellow); }
+  #term .log-result { color: var(--green); }
+  #term .log-info { color: var(--cyan); }
+  #term .log-error { color: var(--red); }
+  #term .log-step {
+    color: var(--accent);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  /* ── Scrollbar ───────────────────────────── */
+  #chat::-webkit-scrollbar, #term::-webkit-scrollbar { width: 6px; }
+  #chat::-webkit-scrollbar-track, #term::-webkit-scrollbar-track { background: transparent; }
+  #chat::-webkit-scrollbar-thumb, #term::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Typing indicator ────────────────────── */
+  .typing {
+    align-self: flex-start;
+    padding: 10px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .typing span { animation: blink 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+</style>
+</head>
+<body>
+
+<header>
+  <img id="header-avatar" alt="CARL" style="width:56px;height:56px;border-radius:50%;">
+  <h1>CARL <span style="font-weight:400;font-size:12px;color:var(--text-dim)">Chat Assisted Reinforcement Learning</span></h1>
+  <span class="step-badge" id="step-badge">Not started</span>
+  <span class="session-info" id="session-info"></span>
+  <button class="btn btn-primary" id="start-btn" onclick="startSession()">New Session</button>
+</header>
+
+<div id="main">
+  <div id="chat-pane">
+    <div id="chat">
+      <div class="message system">
+        Start a new session to begin designing your RL system.
+      </div>
+    </div>
+    <div id="input-bar">
+      <textarea id="user-input" placeholder="Type your message..." rows="1"
+                disabled autocomplete="off"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+                oninput="autosize(this)"></textarea>
+      <button class="btn" onclick="sendMessage()" id="send-btn" disabled>Send</button>
+    </div>
+  </div>
+  <div id="term-pane">
+    <div id="term-header">
+      <span>Thinking</span>
+      <span class="dot" id="term-dot"></span>
+    </div>
+    <div id="term"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>
+marked.setOptions({
+  highlight: function(code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      return hljs.highlight(code, { language: lang }).value;
+    }
+    return hljs.highlightAuto(code).value;
+  },
+  breaks: true,
+  gfm: true,
+});
+
+const chat = document.getElementById('chat');
+const term = document.getElementById('term');
+const termDot = document.getElementById('term-dot');
+const input = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const startBtn = document.getElementById('start-btn');
+const stepBadge = document.getElementById('step-badge');
+const sessionInfo = document.getElementById('session-info');
+
+const templateRevisitMode = {{ revisit_mode|default(false)|tojson }};
+const basePath = window.location.pathname.replace(/\/+$/, '');
+
+let busy = false;
+let currentAssistantText = '';
+let pendingAdvance = false;
+let autonomousMode = false;
+let trillianSuggestion = null;
+let logSince = 0;
+let eventSince = 0;
+let pollTimer = null;
+
+// Hang-recovery state
+let busySince = null;
+let lastEventAt = null;
+let consecutivePollFailures = 0;
+const BUSY_IDLE_TIMEOUT = 600000;         // 10 min with no events (interactive)
+const BUSY_IDLE_TIMEOUT_AUTO = 600000;   // 10 min with no events (autonomous)
+const BUSY_HARD_TIMEOUT = 900000;         // 15 min absolute max (interactive)
+const BUSY_HARD_TIMEOUT_AUTO = 7200000;  // 120 min absolute max (autonomous)
+const MAX_POLL_FAILURES = 5;
+
+function scrollChat() { chat.scrollTop = chat.scrollHeight; }
+function scrollTerm() { term.scrollTop = term.scrollHeight; }
+
+// Grow the input to fit its content, up to the CSS max-height.
+// Must be called explicitly after setting .value from script, since
+// assigning .value does not fire an `input` event.
+function autosize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+}
+
+function setInputEnabled(enabled) {
+  input.disabled = !enabled;
+  sendBtn.disabled = !enabled;
+  if (enabled) input.focus();
+}
+
+function recoverFromHang(reason) {
+  busy = false;
+  busySince = null;
+  lastEventAt = null;
+  pendingAdvance = false;
+  consecutivePollFailures = 0;
+  setTermActive(false);
+  removeTyping();
+  if (currentAssistantText) {
+    try { addMessage('assistant', marked.parse(currentAssistantText)); } catch(_) {}
+    currentAssistantText = '';
+  }
+  addMessage('system', reason + ' You may need to resend your message.');
+  setInputEnabled(true);
+  if (autonomousMode) {
+    input.placeholder = 'Send a message to guide CARL...';
+    sendBtn.textContent = 'Interject';
+  } else {
+    input.placeholder = 'Type your message...';
+    sendBtn.textContent = 'Send';
+  }
+}
+
+function setTermActive(active) {
+  termDot.classList.toggle('active', active);
+}
+
+// ── Chat pane helpers ──────────────────────
+
+const carlAvatarUrl = basePath + '/static/carl.png';
+document.getElementById('header-avatar').src = carlAvatarUrl;
+
+function addMessage(role, html) {
+  if (role === 'system') {
+    // System messages stay centered, no avatar
+    const row = document.createElement('div');
+    row.className = 'message-row system';
+    const msg = document.createElement('div');
+    msg.className = 'message system';
+    msg.innerHTML = html;
+    row.appendChild(msg);
+    chat.appendChild(row);
+    renderRichContent(msg);
+    scrollChat();
+    return msg;
+  }
+
+  const row = document.createElement('div');
+  row.className = `message-row ${role}`;
+
+  if (role === 'assistant') {
+    const av = document.createElement('div');
+    av.className = 'avatar';
+    av.innerHTML = `<img src="${carlAvatarUrl}" alt="CARL">`;
+    row.appendChild(av);
+  }
+
+  const msg = document.createElement('div');
+  msg.className = `message ${role}`;
+  msg.innerHTML = html;
+  row.appendChild(msg);
+  chat.appendChild(row);
+  renderRichContent(msg);
+  scrollChat();
+  return msg;
+}
+
+function addStepBanner(number, name) {
+  const div = document.createElement('div');
+  div.className = 'step-banner';
+  div.textContent = `Step ${number}: ${name}`;
+  chat.appendChild(div);
+  stepBadge.textContent = templateRevisitMode ? `Step ${number}: ${name}` : `Step ${number}/9: ${name}`;
+  scrollChat();
+}
+
+function addSummary(text, stepNum) {
+  const div = document.createElement('div');
+  div.className = 'summary-card';
+  const label = stepNum ? `Step ${stepNum} Summary` : 'Step Summary';
+  div.innerHTML = `<div class="label">${label}</div>${marked.parse(text)}`;
+  chat.appendChild(div);
+  renderRichContent(div);
+  scrollChat();
+}
+
+function showTyping() {
+  if (document.getElementById('typing-indicator')) return;
+  const div = document.createElement('div');
+  div.className = 'typing';
+  div.id = 'typing-indicator';
+  div.innerHTML = '<span>.</span><span>.</span><span>.</span>';
+  chat.appendChild(div);
+  scrollChat();
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+function highlightAll() {
+  chat.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+}
+
+function renderMath(el) {
+  if (!window.MathJax || !MathJax.typesetPromise) return;
+  MathJax.typesetPromise([el]).catch(err => {
+    console.error('MathJax render error:', err);
+  });
+}
+
+function renderRichContent(el) {
+  el.querySelectorAll('pre code').forEach(code => {
+    if (!code.dataset.highlighted) hljs.highlightElement(code);
+  });
+  renderMath(el);
+}
+
+window.renderExistingMath = function() {
+  if (!window.MathJax || !MathJax.typesetPromise) return;
+  MathJax.typesetPromise([...chat.querySelectorAll('.message, .summary-card')]).catch(err => {
+    console.error('MathJax initial render error:', err);
+  });
+};
+
+// ── Polling engine ────────────────────────
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(poll, 500);
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function poll() {
+  pollLogs();
+  pollEvents();
+}
+
+let _logPollInFlight = false;
+
+function pollLogs() {
+  if (_logPollInFlight) return;
+  _logPollInFlight = true;
+  fetch(basePath + '/api/logs?since=' + logSince)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.entries || data.entries.length === 0) return;
+      let needsScroll = false;
+      for (const entry of data.entries) {
+        if (entry.id <= logSince) continue;
+        logSince = entry.id;
+        if (entry.level === 'text') {
+          let last = term.lastChild;
+          if (!last || !last.classList || !last.classList.contains('log-text')) {
+            last = document.createElement('span');
+            last.className = 'log-text';
+            term.appendChild(last);
+          }
+          last.textContent += entry.text;
+        } else {
+          const span = document.createElement('span');
+          span.className = `log-${entry.level || 'info'}`;
+          span.textContent = entry.text + '\n';
+          term.appendChild(span);
+        }
+        needsScroll = true;
+      }
+      if (needsScroll) scrollTerm();
+    })
+    .catch(() => {})
+    .finally(() => { _logPollInFlight = false; });
+}
+
+let _eventPollInFlight = false;
+
+function pollEvents() {
+  if (_eventPollInFlight) return;
+  _eventPollInFlight = true;
+  fetch(basePath + '/api/events?since=' + eventSince)
+    .then(r => r.json())
+    .then(data => {
+      consecutivePollFailures = 0;
+      const wasBusy = busy;
+      busy = data.busy;
+      setTermActive(busy);
+
+      // Track when busy started
+      if (busy && !wasBusy) {
+        busySince = Date.now();
+        lastEventAt = Date.now();
+      }
+      if (!busy) {
+        busySince = null;
+        lastEventAt = null;
+      }
+
+      if (data.entries && data.entries.length > 0) {
+        lastEventAt = Date.now();
+        for (const entry of data.entries) {
+          if (entry.id <= eventSince) continue;
+          eventSince = entry.id;
+          handleEvent(entry.event, entry.data);
+        }
+      }
+
+      // Transition from busy → not busy: finalize the turn
+      if (wasBusy && !busy) {
+        finishTurn();
+      }
+
+      // Hang recovery: check timeouts while still busy
+      if (busy && busySince) {
+        const now = Date.now();
+        const idleMs = lastEventAt ? now - lastEventAt : now - busySince;
+        const totalMs = now - busySince;
+        const idleLimit = autonomousMode ? BUSY_IDLE_TIMEOUT_AUTO : BUSY_IDLE_TIMEOUT;
+        const hardLimit = autonomousMode ? BUSY_HARD_TIMEOUT_AUTO : BUSY_HARD_TIMEOUT;
+        if (idleMs > idleLimit) {
+          recoverFromHang('Server stopped responding.');
+        } else if (totalMs > hardLimit) {
+          recoverFromHang('Request timed out.');
+        }
+      }
+    })
+    .catch(() => {
+      consecutivePollFailures++;
+      if (consecutivePollFailures >= MAX_POLL_FAILURES && busy) {
+        recoverFromHang('Lost connection to server.');
+      }
+    })
+    .finally(() => { _eventPollInFlight = false; });
+}
+
+function handleEvent(event, data) {
+  removeTyping();
+
+  if (event === 'step') {
+    addStepBanner(data.number, data.name);
+  }
+  else if (event === 'text') {
+    currentAssistantText += data.text;
+  }
+  else if (event === 'summary') {
+    if (currentAssistantText) {
+      addMessage('assistant', marked.parse(currentAssistantText));
+      highlightAll();
+      currentAssistantText = '';
+    }
+    addSummary(data.text, data.step);
+  }
+  else if (event === 'step_advance') {
+    const nextIdx = data.next;
+    if (!templateRevisitMode && nextIdx >= 9) {
+      addMessage('system', 'All steps complete!');
+      stepBadge.textContent = 'Complete';
+    } else {
+      pendingAdvance = true;
+    }
+  }
+  else if (event === 'info') {
+    addMessage('system', data.text);
+  }
+  else if (event === 'error') {
+    addMessage('system', data.text);
+  }
+  else if (event === 'autonomous_start') {
+    autonomousMode = true;
+    addMessage('system', data.text);
+    setInputEnabled(true);
+    input.placeholder = 'Send a message to guide CARL...';
+    sendBtn.textContent = 'Interject';
+  }
+  else if (event === 'trillian_suggestion') {
+    // Pre-fill the input textbox with Trillian's suggestion.
+    // The user can edit it freely before sending.
+    trillianSuggestion = data.text;
+    input.value = data.text;
+    setInputEnabled(true);
+    autosize(input);
+    input.focus();
+    // Select all so the user can easily replace it by typing
+    input.select();
+  }
+  else if (event === 'interjection') {
+    addMessage('user', data.text);
+  }
+  else if (event === 'done') {
+    autonomousMode = false;
+    addMessage('system', data.text);
+    stepBadge.textContent = 'Complete';
+    sendBtn.textContent = 'Send';
+  }
+  else if (event === 'turn_end') {
+    // Safety guard: if the busy→not-busy transition was missed (e.g. the
+    // entire turn completed between two polls), finishTurn() would never
+    // fire.  Catch that here so the input doesn't stay permanently disabled.
+    if (!busy) finishTurn();
+  }
+}
+
+function finishTurn() {
+  try {
+    if (currentAssistantText) {
+      addMessage('assistant', marked.parse(currentAssistantText));
+      highlightAll();
+    }
+  } catch (e) {
+    console.error('finishTurn render error:', e);
+    try { addMessage('assistant', currentAssistantText); } catch(_) {}
+  }
+  currentAssistantText = '';
+  removeTyping();
+
+  if (autonomousMode) {
+    setInputEnabled(true);
+    input.placeholder = 'Send a message to guide CARL...';
+    sendBtn.textContent = 'Interject';
+  } else if (pendingAdvance) {
+    pendingAdvance = false;
+    setInputEnabled(false);
+    sendToServer('');
+  } else {
+    setInputEnabled(true);
+    input.placeholder = 'Type your message...';
+  }
+}
+
+// ── Session ───────────────────────────────
+
+async function startSession() {
+  try {
+    startBtn.disabled = true;
+    startBtn.textContent = 'Starting...';
+    const resp = await fetch(basePath + '/api/start', { method: 'POST' });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      addMessage('system', `Error starting session: ${resp.status} ${errText}`);
+      startBtn.disabled = false;
+      startBtn.textContent = 'New Session';
+      return;
+    }
+    const data = await resp.json();
+    sessionInfo.textContent = data.directory;
+    chat.innerHTML = '';
+    term.innerHTML = '';
+    logSince = 0;
+    eventSince = 0;
+    autonomousMode = false;
+    input.placeholder = 'Type your message...';
+    const startMessage = data.revisit
+      ? `Revisit mode: ${data.directory}. Model: ${data.model}`
+      : data.resume
+        ? `Resume mode: ${data.directory}. Resuming Step ${data.resume_step.number}: ${data.resume_step.name}. Model: ${data.model}`
+        : `Session started. Model: ${data.model}`;
+    addMessage('system', startMessage);
+    if (data.resume_warnings && data.resume_warnings.length) {
+      data.resume_warnings.forEach(w => addMessage('system', `Resume warning: ${w}`));
+    }
+    setInputEnabled(false);
+    startBtn.disabled = false;
+    startBtn.textContent = 'Restart';
+    startPolling();
+    sendToServer('');
+  } catch (err) {
+    addMessage('system', `Connection error: ${err.message}`);
+    startBtn.disabled = false;
+    startBtn.textContent = 'New Session';
+  }
+}
+
+function sendMessage() {
+  if (!autonomousMode && (busy || input.disabled)) return;
+  let text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+  trillianSuggestion = null;
+  addMessage('user', marked.parse(text));
+  if (!autonomousMode) setInputEnabled(false);
+  sendToServer(text);
+}
+
+function sendToServer(text) {
+  if (autonomousMode) {
+    // Interjection: queue message without blocking the autonomous loop
+    // (user message already shown by sendMessage caller)
+    fetch(basePath + '/api/interject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    }).catch(err => {
+      addMessage('system', `Interjection failed: ${err.message}`);
+    });
+    return;
+  }
+
+  showTyping();
+  setTermActive(true);
+  currentAssistantText = '';
+
+  fetch(basePath + '/api/message', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text }),
+  }).then(r => {
+    if (!r.ok) {
+      return r.text().then(t => { throw new Error(t); });
+    }
+  }).catch(err => {
+    removeTyping();
+    setTermActive(false);
+    addMessage('system', `Connection error: ${err.message}`);
+    setInputEnabled(true);
+  });
+}
+</script>
+</body>
+</html>
