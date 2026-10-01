@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# This file is part of CARL.
+#
+# CARL is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License, version 3, as published by the
+# Free Software Foundation.
+#
+# CARL is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for details.
+#
+# You should have received a copy of the GNU General Public License along
+# with CARL. If not, see <https://www.gnu.org/licenses/>.
+
 """Shared Bedrock Converse API helper with prompt caching.
 
 This module centralizes CARL's Bedrock Converse request building, including
@@ -37,6 +52,11 @@ from typing import Any, Iterator
 # Matches the Claude 5 family (Fable / Mythos / Opus / Sonnet), with or without
 # a region prefix or a dated snapshot suffix.
 _CLAUDE_5_RE = re.compile(r"claude-(opus|sonnet|fable|mythos)-5\b")
+
+
+def _is_anthropic_model(model: str) -> bool:
+    """Whether *model* is an Anthropic model ID accepted by Bedrock."""
+    return "anthropic." in model.lower()
 
 
 def _is_claude_5(model: str) -> bool:
@@ -127,6 +147,11 @@ def thinking_config_for_step(
     model: str, step_number: float | int | None, ceiling: str | None = None,
 ) -> dict | None:
     """Return additionalModelRequestFields for extended thinking, or None."""
+    # CARL's extended-thinking request fields are Anthropic-specific. Sending
+    # them to another Converse provider makes an otherwise standard request
+    # fail validation, so non-Anthropic models use the core Converse shape.
+    if not _is_anthropic_model(model):
+        return None
     tier = thinking_tier_for_step(step_number, ceiling)
     if tier is None:
         return None
@@ -353,15 +378,23 @@ def _build_kwargs(
     cache_ttl: str | None,
     thinking_config: dict | None = None,
 ) -> dict:
+    # Prompt-cache points are also an Anthropic-specific extension. Preserve
+    # caching for Anthropic models while keeping other Converse providers on
+    # their portable request shape.
+    use_anthropic_extensions = _is_anthropic_model(model)
     kwargs: dict = {
         "modelId": model,
-        "system": _build_system_blocks(system, cache_system, cache_ttl),
+        "system": _build_system_blocks(
+            system, cache_system and use_anthropic_extensions, cache_ttl,
+        ),
         "messages": messages_to_converse(messages),
         "inferenceConfig": _build_inference_config(
             model, max_tokens, temperature, thinking_enabled=bool(thinking_config),
         ),
     }
-    tool_config = _build_tool_config(tools, cache_tools, cache_ttl)
+    tool_config = _build_tool_config(
+        tools, cache_tools and use_anthropic_extensions, cache_ttl,
+    )
     if tool_config is not None:
         kwargs["toolConfig"] = tool_config
     if thinking_config is not None:

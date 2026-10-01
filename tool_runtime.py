@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# This file is part of CARL.
+#
+# CARL is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License, version 3, as published by the
+# Free Software Foundation.
+#
+# CARL is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for details.
+#
+# You should have received a copy of the GNU General Public License along
+# with CARL. If not, see <https://www.gnu.org/licenses/>.
+
 """Shared tool-execution logic for CARL's two engines.
 
 `web.py` and `chat.py` are near-duplicate controllers around the same tool
@@ -487,8 +502,8 @@ def append_user_request(messages: list[dict], request: str) -> list[dict]:
 # ── Tool description fragments ───────────────────────────────────────────
 #
 # Both engines run commands with cwd set to the session's code/ directory.
-# Observed sessions issued `cd /home/.../code` and `ls code/` from inside
-# code/, so the contract is stated in the tool schema itself.
+# Some generated commands redundantly change into or list `code/` from inside
+# that directory, so the contract is stated in the tool schema itself.
 
 def normalize_code_relpath(rel_path: str) -> str:
     """Strip a redundant leading `code/` from a path meant to be inside code/.

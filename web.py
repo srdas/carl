@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# This file is part of CARL.
+#
+# CARL is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License, version 3, as published by the
+# Free Software Foundation.
+#
+# CARL is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for details.
+#
+# You should have received a copy of the GNU General Public License along
+# with CARL. If not, see <https://www.gnu.org/licenses/>.
+
 """CARL Web UI -- lightweight Flask frontend with polling-based UI."""
 
 import io
@@ -12,10 +27,9 @@ import sys
 from datetime import date
 from pathlib import Path
 
-# Backstop for any socket op that doesn't set its own timeout (e.g. the
-# container-credentials refresh on 111.222.333.4:80, which has hung in
-# CLOSE_WAIT and blocked the whole process in poll()). Bedrock calls set
-# their own timeouts via botocore Config and are unaffected.
+# Backstop for any socket operation that does not set its own timeout (for
+# example, a stalled container-credentials refresh). Bedrock calls set their
+# own timeouts via botocore Config and are unaffected.
 socket.setdefaulttimeout(60)
 
 import boto3
@@ -120,9 +134,8 @@ _SUGGEST_DOCUMENT_USER = SUGGEST_DOCUMENT_USER
 
 def _build_bedrock_client(region: str):
     # Tighten timeouts on the container-credentials fetcher so a half-closed
-    # socket can't wedge the process (observed: 169.254.170.2:80 stuck in
-    # CLOSE_WAIT while main thread slept in do_poll forever). TIMEOUT_SECONDS
-    # is passed to urllib3 Timeout() and covers both connect and read.
+    # socket cannot wedge the process. TIMEOUT_SECONDS is passed to urllib3
+    # Timeout() and covers both connect and read.
     from botocore.utils import ContainerMetadataFetcher
     ContainerMetadataFetcher.TIMEOUT_SECONDS = 5
 
@@ -2770,4 +2783,4 @@ if __name__ == "__main__":
         print(f"  Resuming Step {info.step_number}: {info.step_name}\n")
     else:
         print(f"\n  CARL Web UI starting on http://localhost:{port}\n")
-    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+    app.run(host="localhost", port=port, debug=False, threaded=True)

@@ -190,6 +190,15 @@ an older model via `CARL_MODEL` keeps working.
 `DEFAULT_TRILLIAN_MODEL` (Haiku 4.5) is the only shipped default that still
 accepts `temperature`, so this branch is not dead code.
 
+### Provider portability
+
+The core request and response conversions work with models from any provider
+that supports the Bedrock Converse API. `_is_anthropic_model(model)` gates
+CARL's provider-specific extensions: prompt-cache points and extended-thinking
+fields are sent only to Anthropic model IDs. Other Converse providers receive
+the portable system, messages, tools, and inference configuration instead.
+Their support for tool use and image input remains model-specific.
+
 ### Model quirk: adaptive-thinking token floor
 
 `_ADAPTIVE_MIN_MAX_TOKENS = 256`. Claude 5 thinks adaptively even with no
@@ -558,8 +567,8 @@ pass `session.step_decisions.get(7, "")`.
 ### Path and tool-description contract
 
 Both engines run commands with cwd set to the session's `code/` directory.
-Observed sessions issued `cd /home/.../code` and `ls code/` from *inside* `code/`,
-so `CODE_DIR_CONTRACT` states the rule inside the `run_command` and
+Some generated commands redundantly change into `code/` or list `code/` from
+*inside* that directory, so `CODE_DIR_CONTRACT` states the rule inside the `run_command` and
 `run_background` schemas themselves, and `normalize_code_relpath` strips a leading
 `code/` component from `write_file` paths (which would otherwise create
 `code/code/train.py`). This mirrors `command_compat._resolve_code_path`, which

@@ -1,115 +1,131 @@
-# CARL Web Launch Commands
+# CARL launch commands
 
-## AWS SSO Login
+Run all commands from the repository root. Replace angle-bracketed values
+with values appropriate for your own environment; no account names, account
+numbers, or credentials belong in commands or configuration files.
+
+## Local workstation setup
+
+CARL can run on a local workstation and does not require SageMaker. Create a
+virtual environment, activate it, and install the controller dependencies:
 
 ```powershell
-aws sso login --profile <your-aws-profile>
-aws sso login --profile <your-org>-nonprod-<your-account-id>
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-Run this before launching CARL locally. Replace the placeholders with your own AWS SSO profile and region.
+The generated Step 8/9 artifact in `goddard_code/` has an independent
+environment. Install it only when you want to run its tests or scripts:
 
 ```powershell
-$env:AWS_PROFILE="<your-aws-profile>"
-$env:AWS_DEFAULT_PROFILE="<your-aws-profile>"
-$env:AWS_REGION="<your-aws-region>"
+python -m pip install -r goddard_code/requirements.txt
+Push-Location goddard_code
+python -m pytest test_step8.py -q
+Pop-Location
 ```
 
-## Normal Web Run
+## Local running without AWS or SageMaker
+
+SageMaker is not required: the web and terminal interfaces run on the local
+machine. The shipped LLM provider is Amazon Bedrock Converse, so an actual
+CARL workflow still requires AWS credentials and permission to invoke a
+Bedrock model. A fully AWS-free local-model backend is not included in this
+repository. You can inspect command-line help without credentials:
+
+```powershell
+python web.py --help
+python carl.py --help
+```
+
+## Bedrock credentials and configuration
+
+Use the standard AWS credential chain, such as an AWS SSO profile, environment
+credentials, or a workload role. For an SSO profile:
+
+```powershell
+aws sso login --profile <aws-profile>
+$env:AWS_PROFILE="<aws-profile>"
+$env:AWS_DEFAULT_PROFILE="<aws-profile>"
+$env:AWS_REGION="<aws-region>"
+```
+
+Alternatively, copy `.env.example` to `.env` and set only the variables that
+apply. Keep `.env` out of version control and never put real access keys,
+tokens, or contact details in it.
+
+## Start CARL locally
 
 ```powershell
 python web.py
 ```
 
-Starts the normal 9-step CARL web workflow on `http://localhost:5001`.
-
-## Custom Port
+The web interface listens on `http://localhost:5001` by default and is bound
+to the local machine. To choose another port:
 
 ```powershell
-$env:CARL_PORT="8080"; python web.py
+$env:CARL_PORT="8080"
+python web.py
 ```
 
-Starts the web UI on a different port.
+For the terminal interface:
 
-## Write Report
+```powershell
+python carl.py
+```
+
+## Optional workflow modes
 
 ```powershell
 python web.py --write-report
-```
-
-Generates the optional LaTeX/PDF report after the normal workflow completes.
-
-## Skip Trillian Update
-
-```powershell
 python web.py --no-persona-update
-```
-
-Runs the normal workflow but skips the post-session Trillian persona update.
-
-## Report Without Trillian Update
-
-```powershell
-python web.py --write-report --no-persona-update
-```
-
-Writes the report after completion while leaving the Trillian persona unchanged.
-
-## Step 10 Revisit
-
-```powershell
 python web.py --revisit sessions/<session_dir>
-```
-
-Opens an existing session directly in Step 10 post-training analysis mode.
-
-## Step 10 Revisit On Custom Port
-
-```powershell
-$env:CARL_PORT="8080"; python web.py --revisit sessions/<session_dir>
-```
-
-Runs revisit mode on a different local port.
-
-## Resume An Unfinished Session
-
-```powershell
 python web.py --resume sessions/<session_dir>
 ```
 
-Reopens an existing session and continues the normal workflow from its last
-unfinished step, restoring prior step decisions. Requires the session's
-`memory.md` and `web.log`; refuses sessions that already completed (use
-`--revisit` for those). `--resume` and `--revisit` cannot be combined.
+`--write-report` generates the optional LaTeX/PDF report after completion.
+`--no-persona-update` skips the post-session persona update. `--revisit`
+opens a completed session in Step 10; `--resume` continues an unfinished
+session. `--revisit` and `--resume` are mutually exclusive.
 
-## Resume On Custom Port
+## Non-Anthropic models through Converse
 
-```powershell
-$env:CARL_PORT="8080"; python web.py --resume sessions/<session_dir>
-```
-
-Runs resume mode on a different local port.
-
-## Run The Tests
+The Bedrock Converse integration is provider-neutral for its core message,
+streaming, and tool schemas. To use another model that your account can invoke
+through Converse, set its Bedrock model ID before launching:
 
 ```powershell
-python -m pytest tests/ -q
+$env:CARL_MODEL="<converse-model-id>"
+python web.py
 ```
 
-Runs the controller-side unit tests (skill loading and format, shared tool
-runtime, plot discovery, memory parsing, resume detection, artifact plumbing).
-No AWS credentials required.
-
-## Run A Finished Model
+Use the role-specific overrides when those tasks should use a different
+Converse model:
 
 ```powershell
-cd sessions/<session_dir>/code/artifact
-python smoke_test.py
-python solve.py --instance instance.json --out result.json
+$env:CARL_REPORT_MODEL="<converse-model-id>"
+$env:CARL_TRILLIAN_MODEL="<converse-model-id>"
+$env:CARL_PERSONA_UPDATE_MODEL="<converse-model-id>"
 ```
 
-A completed Step 9 run leaves a self-contained `artifact/` bundle. `smoke_test.py`
-reproduces the recorded metric on the canonical instance; `solve.py` solves a new
-instance (`--param k=v` may be repeated instead of an instance file). Check
-`MODEL_CARD.md` in the same directory for the validity domain before trusting a
-result. A revisit's bundle is under `code/revisit_N/artifact/`.
+For non-Anthropic models, CARL sends the portable Converse request shape and
+does not send Anthropic-only prompt-caching or extended-thinking fields. The
+selected model must support the capability used by each workflow stage:
+text generation for all stages, tool use for autonomous coding stages, and
+image input for report plot descriptions. Model availability and supported
+features vary by region and account, so validate a model with a short run
+before using it for a full workflow.
+
+## Run the included artifact tests
+
+```powershell
+Push-Location goddard_code
+python -m pytest test_step8.py -q
+Pop-Location
+```
+
+The checked-in test assertions must be synchronized with the current generated
+artifact before this suite will pass: the tests currently expect a 12-element
+observation while the environment and network use 14 elements, and one reward
+expectation uses an older formulation.
