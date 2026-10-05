@@ -1,11 +1,25 @@
-# CARL (clean working copy)
+# CARL (Chat Assisted Reinforcement Learning)
 
-This is the minimal CARL controller and support set, copied without prior runs or research-history material.
+## Introduction
+
+Reinforcement learning (RL) is a powerful tool for sequential decision-making, but most applied RL projects fail not because of weak algorithms, but because the problem itself is poorly specified. Domain experts typically hand off a high-level goal while leaving out critical details — constraints, reward shaping, state representations — and these hidden assumptions surface only after code has been written, triggering costly re-engineering. This "RL specification gap" is the real bottleneck in applied RL, producing well-known failure modes such as reward hacking (the agent satisfies the reward function while violating the task's intent) and state aliasing (the agent cannot distinguish between distinct states that have been collapsed into a single observation).
+
+CARL (Chat Assisted Reinforcement Learning) addresses this gap with a human-AI co-design architecture that enforces interactive problem specification *before* any code is generated. CARL walks a domain expert through a structured ten-step workflow, using step-specific skill files, domain-aware suggestions from an assistant persona called Trillian, and compact decision summaries that preserve context across iterations without overloading it. Once the expert confirms the resulting Markov decision process (MDP), CARL's autonomous tool-use loop generates, tests, executes, and debugs a complete RL training pipeline, then supports an interactive post-training diagnosis and revisit step so the expert can verify results and adjust parameters before launching another iteration.
+
+To showcase the system in this repository, CARL has been applied to two very different path-dependent optimization problems: goals-based wealth management in finance, and dynamic-pressure-constrained Goddard rocket control in aerospace engineering. In both cases, interactive specification engineering with sustained human domain expertise resolves failure modes that unguided, fully autonomous code generation could not, consistently producing viable policies where "vibe coding" alone fails.
+
+This is a minimal CARL controller and support set, copied without prior runs or research-history material.
 
 ## Run
 
-1. Create and activate a Python virtual environment (Python 3.10+ recommended).
-2. Install the controller dependencies: `python -m pip install -r requirements.txt`.
+1. Create and activate a Python virtual environment (Python 3.10+ recommended). This is best done using `uv`. To install `uv` follow the instructions here: https://docs.astral.sh/uv/getting-started/installation/. Then create the virtual environment and enable it as follows: (Feel free to use any higher version of Python as well. 
+)
+```
+uv venv --python 3.13
+source .venv/bin/activate
+```
+
+2. Install the controller dependencies: `uv python -m pip install -r requirements.txt`.
 3. Configure Bedrock access through the standard AWS credential chain. If helpful, copy `.env.example` to `.env` and fill in only the applicable values.
 4. Start the web interface with `python web.py`, or the terminal interface with `python carl.py`.
 
