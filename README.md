@@ -50,5 +50,10 @@ access. A fully AWS-free local-model provider is not included. See
 
 ## License
 
-This project is licensed under the GNU General Public License, version 3. See
-[LICENSE](LICENSE).
+Copyright &copy; 2026 Franklin Templeton. All rights reserved.
+
+CARL (Chat Assisted Reinforcement Learning) is developed by Franklin Templeton and released as open-source software under the **GNU General Public License, Version 3.0 (GPL-3.0)**.
+
+You may use, modify, and redistribute this software in accordance with the terms of the GPL-3.0 license. See the [LICENSE](LICENSE) file for full license text.
+
+This software is provided "AS IS", without warranty of any kind, to the extent permitted by applicable law. Franklin Templeton does not provide any guarantee of performance, fitness for a particular purpose, or suitability for investment or other consequential decision-making. 
